@@ -30,6 +30,7 @@ def get_topic(page=0):
 
     #extract json
     r_json = json.loads(r.text)
+    print(r_json)
     cards = r_json['data']['cards']
     '''
     if len(cards) > 1 :
@@ -52,11 +53,12 @@ def get_topic(page=0):
             try:
                 mblog = card['mblog']
                 user = mblog['user']
-                try:
-                    basic_info = get_user_detail(user['id'])
-                except:
-                    print("bad user info ")
-                    continue
+                #print("user:",user)
+                basic_info = get_user_detail(user['id'])
+                #print("basic info--->", basic_info)
+                # except:
+                #     print("bad user info ")
+                #     continue
 
                 column.append(user['id'])
                 column.extend(basic_info)
@@ -76,13 +78,15 @@ def get_topic(page=0):
                 '''
 
                 #print(clean_text)
-                if len(column<6):
+                if len(column)<6:
                     print("Incomplete weibo post")
                     continue
 
                 #save_data(column)
+                print("---------------------------------------------------------")
                 print(column)
-                time.sleep(random.randint(3.6))
+                print("---------------------------------------------------------")
+                time.sleep(random.randint(3,6))
 
             except KeyError as e:
                 print(e)
@@ -111,8 +115,7 @@ def user_login():
     except:
         print("login failure")
         return 0
-    print(json.loads(r.text))
-    print()
+    #print(json.loads(r.text))
     return 1
 
 
@@ -122,24 +125,73 @@ def get_user_detail(id):
     :param id: post owner's user id
     :return: ['username','gender','area','birthday']
     '''
-    url = 'https://weibo.cn/%s/info' % id
+    url = 'https://weibo.cn/'+str(id)+'/info'
+    #print(url)
     header = {
-        'user-agent': 'Mozilla/5.0 (Linux; Android 6.0; Nexus 5 Build/MRA58N) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/75.0.3770.100 Mobile Safari/537.36'
+        'user-agent': 'Mozilla/5.0 (X11; Fedora; Linux x86_64; rv:67.0) Gecko/20100101 Firefox/67.0'
+
     }
 
     try:
         r = s.get(url=url, headers=header)
+        #print(r.text)
         r.raise_for_status()
     except:
         print("user info failure")
         return
     #use re lib to extract data we need
-    info_html= re.findall('<div class="tip">基本信息</div><div class ="c">(.*?)</div>', r.text)
+    info_html= re.findall('<div class="tip">基本信息</div><div class="c">(.*?)</div>', r.text)
+    #print(info_html)
     info = get_info_list(info_html)
     return info
 
+def get_info_list(info_html) -> list:
+    '''
 
+    :param info_html:
+    :return: [username,gender, area, birthday]
+    '''
+    info_list = []
+    basic_info_kvs = info_html[0].split('<br/>')
+    #print(basic_info_kvs)
+    for basic_info_kv in basic_info_kvs:
+        if basic_info_kv.startswith('昵称'):
+            info_list.append(basic_info_kv.split(':')[1])
+        elif basic_info_kv.startswith('性别'):
+            info_list.append(basic_info_kv.split(':')[1])
+        elif basic_info_kv.startswith('地区'):
+            area=basic_info_kv.split(':')[1]
+            if '其他' in area or '海外' in area:
+                info_list.append('')
+                continue
+            if ' ' in area:
+                area = area.split(' ')[0]
+            info_list.append(area)
+        elif basic_info_kv.startswith('生日'):
+            birthday = basic_info_kv.split(':')[1]
+            #print(birthday)
+            if birthday.startswith('19') or birthday.startswith('20'):
+                info_list.append(birthday[:])
+            else:
+                info_list.append('')
+        else:
+            pass
+    #in case no birthday
+    print(info_list)
+    if len(info_list)<4:
+        info_list.append('')
+    return info_list
 
-for i in range(10):
-    get_topic(i)
+def auto_run():
+    #must login first
+    if not user_login():
+        return
+    for i in range(3):
+        get_topic(i)
+
 #print(user_login())
+
+if __name__ == '__main__':
+    auto_run()
+#user_login()
+#get_user_detail(2803301701)
